@@ -365,35 +365,97 @@ function group(array, keySelector, valueSelector) {
  *  For more examples see unit tests.
  */
 
-const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
-  },
-
-  id(/* value */) {
-    throw new Error('Not implemented');
-  },
-
-  class(/* value */) {
-    throw new Error('Not implemented');
-  },
-
-  attr(/* value */) {
-    throw new Error('Not implemented');
-  },
-
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
-  },
-
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
-  },
-
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
-  },
+const ORDER = [
+  'element',
+  'id',
+  'class',
+  'attr',
+  'pseudoClass',
+  'pseudoElement',
+];
+const SINGLE = ['element', 'id', 'pseudoElement'];
+const PREFIX = {
+  element: '',
+  id: '#',
+  class: '.',
+  attr: '[',
+  pseudoClass: ':',
+  pseudoElement: '::',
 };
+
+class Selector {
+  constructor(parts = []) {
+    this.parts = parts;
+  }
+
+  add(kind, value) {
+    const idx = ORDER.indexOf(kind);
+    if (SINGLE.includes(kind) && this.parts.some((p) => p.kind === kind)) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more than one time inside the selector'
+      );
+    }
+    if (this.parts.some((p) => ORDER.indexOf(p.kind) > idx)) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    return new Selector([...this.parts, { kind, value }]);
+  }
+
+  element(value) {
+    return this.add('element', value);
+  }
+
+  id(value) {
+    return this.add('id', value);
+  }
+
+  class(value) {
+    return this.add('class', value);
+  }
+
+  attr(value) {
+    return this.add('attr', value);
+  }
+
+  pseudoClass(value) {
+    return this.add('pseudoClass', value);
+  }
+
+  pseudoElement(value) {
+    return this.add('pseudoElement', value);
+  }
+
+  // eslint-disable-next-line class-methods-use-this
+  combine(a, b, c) {
+    if (c !== undefined) {
+      return new Selector([
+        { kind: 'group', value: a },
+        { kind: 'comb', value: b },
+        { kind: 'group', value: c },
+      ]);
+    }
+    return new Selector([
+      { kind: 'group', value: this },
+      { kind: 'comb', value: b },
+      { kind: 'group', value: a },
+    ]);
+  }
+
+  stringify() {
+    return this.parts
+      .map((p) => {
+        if (p.kind === 'group') return p.value.stringify();
+        if (p.kind === 'comb') return ` ${p.value} `;
+        const suffix = p.kind === 'attr' ? ']' : '';
+        return `${PREFIX[p.kind]}${p.value}${suffix}`;
+      })
+      .join('');
+  }
+}
+
+const cssSelectorBuilder = new Selector();
 
 module.exports = {
   shallowCopy,
