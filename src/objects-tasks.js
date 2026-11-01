@@ -427,7 +427,6 @@ class Selector {
     return this.add('pseudoElement', value);
   }
 
-  // eslint-disable-next-line class-methods-use-this
   combine(a, b, c) {
     if (c !== undefined) {
       return new Selector([
